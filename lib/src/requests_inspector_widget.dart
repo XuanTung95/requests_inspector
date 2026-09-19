@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:collection/collection.dart';
 import 'package:requests_inspector/src/json_pretty_converter.dart';
@@ -471,29 +472,32 @@ class _Inspector extends StatelessWidget {
           inspectorController.selectedTab == 1 &&
           inspectorController.selectedRequest != null,
       builder: (context, showShareButton, _) => showShareButton
-          ? FloatingActionButton(
-              backgroundColor: Colors.black,
-              foregroundColor: Colors.white,
-              child: const Icon(Icons.share),
-              onPressed: () async {
-                final box = context.findRenderObject() as RenderBox?;
+          ? Padding(
+            padding: const EdgeInsets.only(bottom: 150),
+            child: FloatingActionButton(
+                backgroundColor: Colors.black,
+                foregroundColor: Colors.white,
+                child: const Icon(Icons.share),
+                onPressed: () async {
+                  final box = context.findRenderObject() as RenderBox?;
 
-                final controller = context.read<InspectorController>();
-                final selectedRequest = controller.selectedRequest!;
-                final isHttp = _isHttp(selectedRequest);
+                  final controller = context.read<InspectorController>();
+                  final selectedRequest = controller.selectedRequest!;
+                  final isHttp = _isHttp(selectedRequest);
 
-                final isCurl =
-                    isHttp ? await _showDialogShareType(context) : false;
+                  final isCurl =
+                      isHttp ? await _showDialogShareType(context) : false;
 
-                if (isCurl == null) return;
+                  if (isCurl == null) return;
 
-                controller.shareSelectedRequest(
-                  box == null
-                      ? null
-                      : box.localToGlobal(Offset.zero) & box.size,
-                  isCurl,
-                );
-              })
+                  controller.shareSelectedRequest(
+                    box == null
+                        ? null
+                        : box.localToGlobal(Offset.zero) & box.size,
+                    isCurl,
+                  );
+                }),
+          )
           : const SizedBox(),
     );
   }

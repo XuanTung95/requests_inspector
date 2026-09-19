@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:requests_inspector/src/shake.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -150,7 +153,7 @@ class InspectorController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void shareSelectedRequest([Rect? sharePositionOrigin, bool isCurl = false]) {
+  void shareSelectedRequest([Rect? sharePositionOrigin, bool isCurl = false]) async {
     String? requestShareContent;
     if (isCurl) {
       final curlCommandGenerator = CurlCommandGenerator(_selectedRequest!);
@@ -159,9 +162,25 @@ class InspectorController extends ChangeNotifier {
       final requestMap = _selectedRequest!.toMap();
       requestShareContent = _formatMap(requestMap);
     }
-    Share.share(
-      requestShareContent,
-      sharePositionOrigin: sharePositionOrigin,
+    final text = requestShareContent;
+    if (text.length >= 250) {
+      try {
+        final directory = await getTemporaryDirectory();
+        final filePath = '${directory.path}/debug_message.txt';
+        final file = File(filePath);
+        await file.writeAsString(text);
+        await SharePlus.instance.share(
+          ShareParams(
+            files: [XFile(file.path)],
+            text: "Check out this file!",
+          ),
+        );
+        return;
+      } catch (e) {}
+    }
+    SharePlus.instance.share(ShareParams(
+        text: text,
+        sharePositionOrigin: sharePositionOrigin),
     );
   }
 

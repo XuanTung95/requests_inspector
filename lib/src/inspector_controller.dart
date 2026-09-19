@@ -153,16 +153,24 @@ class InspectorController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void shareSelectedRequest([Rect? sharePositionOrigin, bool isCurl = false]) async {
-    String? requestShareContent;
-    if (isCurl) {
-      final curlCommandGenerator = CurlCommandGenerator(_selectedRequest!);
-      requestShareContent = curlCommandGenerator.generate();
-    } else {
-      final requestMap = _selectedRequest!.toMap();
-      requestShareContent = _formatMap(requestMap);
-    }
-    final text = requestShareContent;
+  void shareSelectedRequest(
+      [Rect? sharePositionOrigin, bool isCurl = false]) async {
+    if (_selectedRequest == null) return;
+
+    final text = isCurl
+        ? CurlCommandGenerator(_selectedRequest!).generate()
+        : _formatMap(_selectedRequest!.toMap());
+    await _shareText(text, sharePositionOrigin);
+  }
+
+  void shareSelectedResponse([Rect? sharePositionOrigin]) async {
+    if (_selectedRequest == null) return;
+
+    final text = JsonPrettyConverter().convert(_selectedRequest!.responseBody);
+    await _shareText(text, sharePositionOrigin);
+  }
+
+  Future<void> _shareText(String text, Rect? sharePositionOrigin) async {
     if (text.length >= 250) {
       try {
         final directory = await getTemporaryDirectory();
@@ -178,9 +186,8 @@ class InspectorController extends ChangeNotifier {
         return;
       } catch (e) {}
     }
-    SharePlus.instance.share(ShareParams(
-        text: text,
-        sharePositionOrigin: sharePositionOrigin),
+    await SharePlus.instance.share(
+      ShareParams(text: text, sharePositionOrigin: sharePositionOrigin),
     );
   }
 

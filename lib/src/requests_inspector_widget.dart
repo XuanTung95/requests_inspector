@@ -1,13 +1,14 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:collection/collection.dart';
 import 'package:requests_inspector/src/json_pretty_converter.dart';
 import 'package:requests_inspector/src/request_stopper_editor_dialog.dart';
 import 'package:requests_inspector/src/response_stopper_editor_dialog.dart';
 import '../requests_inspector.dart';
+
+enum _ShareType { curl, request, response }
 
 ///You can show the Inspector by **Shaking** your phone.
 class RequestsInspector extends StatelessWidget {
@@ -473,31 +474,45 @@ class _Inspector extends StatelessWidget {
           inspectorController.selectedRequest != null,
       builder: (context, showShareButton, _) => showShareButton
           ? Padding(
-            padding: const EdgeInsets.only(bottom: 150),
-            child: FloatingActionButton(
-                backgroundColor: Colors.black,
-                foregroundColor: Colors.white,
-                child: const Icon(Icons.share),
-                onPressed: () async {
-                  final box = context.findRenderObject() as RenderBox?;
+              padding: const EdgeInsets.only(bottom: 150),
+              child: FloatingActionButton(
+                  backgroundColor: Colors.black,
+                  foregroundColor: Colors.white,
+                  child: const Icon(Icons.share),
+                  onPressed: () async {
+                    final box = context.findRenderObject() as RenderBox?;
 
-                  final controller = context.read<InspectorController>();
-                  final selectedRequest = controller.selectedRequest!;
-                  final isHttp = _isHttp(selectedRequest);
+                    final controller = context.read<InspectorController>();
+                    final selectedRequest = controller.selectedRequest!;
+                    final isHttp = _isHttp(selectedRequest);
 
-                  final isCurl =
-                      isHttp ? await _showDialogShareType(context) : false;
+                    final shareType = await _showDialogShareType(
+                      context,
+                      showCurlOption: isHttp,
+                    );
 
-                  if (isCurl == null) return;
+                    if (shareType == null) return;
 
-                  controller.shareSelectedRequest(
-                    box == null
+                    final sharePositionOrigin = box == null
                         ? null
-                        : box.localToGlobal(Offset.zero) & box.size,
-                    isCurl,
-                  );
-                }),
-          )
+                        : box.localToGlobal(Offset.zero) & box.size;
+
+                    switch (shareType) {
+                      case _ShareType.curl:
+                        controller.shareSelectedRequest(
+                          sharePositionOrigin,
+                          true,
+                        );
+                        break;
+                      case _ShareType.request:
+                        controller.shareSelectedRequest(sharePositionOrigin);
+                        break;
+                      case _ShareType.response:
+                        controller.shareSelectedResponse(sharePositionOrigin);
+                        break;
+                    }
+                  }),
+            )
           : const SizedBox(),
     );
   }
@@ -510,26 +525,37 @@ class _Inspector extends StatelessWidget {
         selectedRequest.requestMethod == RequestMethod.DELETE;
   }
 
-  Future<bool?> _showDialogShareType(BuildContext context) {
-    return showDialog<bool?>(
+  Future<_ShareType?> _showDialogShareType(
+    BuildContext context, {
+    required bool showCurlOption,
+  }) {
+    return showDialog<_ShareType?>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Normal Log or cURL command? 🤔'),
+        title: const Text('What do you want to share? 🤔'),
         content: const Text(
-            'The cURL command is more useful for exporting to Postman or run it again from terminal'),
+            'Choose the request log, response, or cURL command to share.'),
         actions: [
-          TextButton(
-            child: const Text(
-              'cURL Command',
-              style: TextStyle(color: Colors.green),
+          if (showCurlOption)
+            TextButton(
+              child: const Text(
+                'cURL Command',
+                style: TextStyle(color: Colors.green),
+              ),
+              onPressed: () => Navigator.of(context).pop(_ShareType.curl),
             ),
-            onPressed: () => Navigator.of(context).pop(true),
-          ),
           TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
+            onPressed: () => Navigator.of(context).pop(_ShareType.request),
             child: const Text(
               'Normal Log',
               style: TextStyle(color: Colors.yellow),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(_ShareType.response),
+            child: const Text(
+              'Response',
+              style: TextStyle(color: Colors.lightBlue),
             ),
           ),
         ],
